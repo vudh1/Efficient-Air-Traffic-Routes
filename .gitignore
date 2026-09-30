@@ -1,0 +1,10 @@
+.DS_Store
+.vs/
+Debug/
+Release/
+x64/
+build/
+*.exe
+*.obj
+*.pdb
+*.ilk
