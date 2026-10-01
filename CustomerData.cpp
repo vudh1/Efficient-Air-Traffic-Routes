@@ -64,16 +64,14 @@ void customerData::getTimeIn()
 {
     timeIn = currentMinutes();
     std::cout << "Time In: " << timeIn / 60 << ":" << std::setfill('0')
-              << timeIn % 60 << std::setfill(' ') << '
-';
+              << timeIn % 60 << std::setfill(' ') << '\\n';
 }
 
 void customerData::getTimeOut()
 {
     timeOut = currentMinutes();
     std::cout << "Time Out: " << timeOut / 60 << ":" << std::setfill('0')
-              << timeOut % 60 << std::setfill(' ') << '
-';
+              << timeOut % 60 << std::setfill(' ') << '\\n';
 }
 
 void customerData::setTimeIn(int minutes)
