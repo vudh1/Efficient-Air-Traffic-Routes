@@ -30,9 +30,6 @@ void menu(BinarySearchTreePlate<customerData>& plateTree,
           int& countData);
 
 void display(customerData& item);
-int findIndexByPlate(const customerData data[],
-                     int countData,
-                     const std::string& plate);
 
 void saveData(const char fileName[],
               const customerData data[],
