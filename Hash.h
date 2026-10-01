@@ -162,8 +162,8 @@ template <class ItemType>
 void HashList<ItemType>::printTable() const
 {
     std::cout << "
-The number of cars is: " << itemCount << '\\n';
-    std::cout << "Listed by plate number (primary key):\\n";
+The number of cars is: " << itemCount << '\n';
+    std::cout << "Listed by plate number (primary key):\n";
 
     for (int i = 0; i < TABLE_SIZE; ++i)
         printItemsInIndex(i);
@@ -179,12 +179,12 @@ void HashList<ItemType>::printItemsInIndex(int index) const
     if (current == nullptr)
         return;
 
-    std::cout << "--------------------------\\n";
-    std::cout << "index [" << index << "] contains:\\n";
+    std::cout << "--------------------------\n";
+    std::cout << "index [" << index << "] contains:\n";
 
     while (current != nullptr)
     {
-        std::cout << current->data << '\\n';
+        std::cout << current->data << '\n';
         current = current->next;
     }
 }
@@ -201,7 +201,7 @@ bool HashList<ItemType>::output(const std::string& fileName) const
         const Item* current = hashTable[i];
         while (current != nullptr)
         {
-            fout << current->code << ' ' << current->data << '\\n';
+            fout << current->code << ' ' << current->data << '\n';
             current = current->next;
         }
     }
@@ -242,11 +242,11 @@ void HashList<ItemType>::stattistic() const
     const double loadFactor =
         static_cast<double>(itemCount) / TABLE_SIZE;
 
-    std::cout << "Hash table buckets: " << TABLE_SIZE << '\\n';
-    std::cout << "Stored records: " << itemCount << '\\n';
-    std::cout << "Used buckets: " << usedBuckets << '\\n';
-    std::cout << "Load factor: " << loadFactor << '\\n';
-    std::cout << "Longest chain: " << longestChain << '\\n';
+    std::cout << "Hash table buckets: " << TABLE_SIZE << '\n';
+    std::cout << "Stored records: " << itemCount << '\n';
+    std::cout << "Used buckets: " << usedBuckets << '\n';
+    std::cout << "Load factor: " << loadFactor << '\n';
+    std::cout << "Longest chain: " << longestChain << '\n';
 }
 
 #endif
