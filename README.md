@@ -1,85 +1,180 @@
 # Smart Valet Parking Service — C++ Data Structures
 
-> **Repository-name note:** the repository name is historical. The code currently stored here is a **Smart Valet Parking Service** data-structures project, not an air-traffic routing implementation. This README describes the source code that is actually present.
+> **Historical repository name:** `Efficient-Air-Traffic-Routes`. The source in this repository is a **Smart Valet Parking Service** project; it is not an air-traffic routing implementation.
 
-A console-based C++ application for managing vehicles in a valet parking service. The project uses several custom data structures to support fast lookup, sorted views, deletion/undo, and persistent customer records.
+![C++ CI](https://github.com/vudh1/Efficient-Air-Traffic-Routes/actions/workflows/ci.yml/badge.svg)
 
-## Features
+![Animated demo](demo.gif)
 
-- load customer/vehicle records from a text file;
-- add newly parked vehicles;
-- remove vehicles when they leave;
-- search by license plate or customer name;
-- display records in multiple sorted/unsorted views;
-- maintain separate binary-search-tree indexes;
-- use a hash table for plate-based lookup;
-- keep an undo stack for deleted records;
-- calculate a parking charge from elapsed time;
-- write/backup customer data.
+A console-based C++ application that manages parked vehicles using custom data structures. Each vehicle is indexed multiple ways so the program can demonstrate hash-table lookup, binary-search-tree ordering, deletion, undo, statistics, and file persistence.
 
-## Data structures
+## What the project demonstrates
 
-| Structure | Role |
-| --- | --- |
-| Hash table | Primary lookup by license plate |
-| Binary search tree | Sorted/indexed lookup by plate |
-| Binary search tree | Secondary ordering by customer name |
-| Stack | Undo history for deleted vehicles |
-| Array | In-memory customer record storage |
+- **Hash table** for license-plate lookup with separate chaining.
+- **Plate-keyed BST** for primary-key ordered traversal.
+- **Name-keyed BST** for secondary-key lookup and sorted traversal.
+- **Stack** for last-in-first-out undo of deletions.
+- **Queue** used by breadth-first tree traversal.
+- **Fixed-size record array** for the active parking inventory.
+- Parking-duration and charge calculation.
+- Persistence through `customerInfo.txt`, `output.txt`, and `BackUp.txt`.
 
-The repository includes custom implementations in files such as `Hash.h`, `BinaryTree.h`, `BinarySearchTreePlate.h`, `BinarySearchTreeName.h`, and `Stack.h`.
+## Architecture
+
+```text
+                         +----------------------+
+                         |   Customer Records   |
+                         +----------+-----------+
+                                    |
+              +---------------------+---------------------+
+              |                     |                     |
+              v                     v                     v
+       Hash<plate>            BST<plate>             BST<name>
+        O(1) avg.              ordered                 ordered
+              |                     |                     |
+              +---------------------+---------------------+
+                                    |
+                                    v
+                              Parking menu
+                                    |
+                       +------------+------------+
+                       |                         |
+                    Delete                    Undo
+                       |                         |
+                       v                         v
+                  Stack<T>  <--------------- restore
+```
+
+## Demo
+
+The repository contains a small deterministic executable in `demo.cpp`. It exercises the same repaired data structures used by the application:
+
+1. Insert four vehicles.
+2. Look up a vehicle through the hash table.
+3. Traverse both BST indexes.
+4. Delete a vehicle.
+5. Restore it through the undo stack.
+6. Print index statistics.
+
+The animated GIF is generated from the executable's real output, so it stays synchronized with the demo as the code changes.
 
 ## Build
 
-The code was written for Visual Studio/MSVC and uses `localtime_s`.
+### CMake
 
-From a Visual Studio Developer Command Prompt:
+Requirements:
 
-```bat
-cl /EHsc main.cpp CustomerData.cpp
+- CMake 3.16+
+- C++17 compiler
+
+Linux/macOS:
+
+```bash
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
+
+./build/valet
+./build/valet_demo
 ```
 
-Then run:
+Windows:
 
-```bat
-main.exe
+```powershell
+cmake -S . -B build
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
+
+.uildReleasealet.exe
+.uildReleasealet_demo.exe
 ```
 
-The program reads its initial records from `customerInfo.txt`.
+The original project was developed with Visual Studio/MSVC. The current code also supports POSIX `localtime_r` so the automated Linux build can exercise the same source.
+
+## Tests
+
+`tests/data_structure_smoke.cpp` covers the core invariants:
+
+- deterministic hash lookup and removal;
+- duplicate plate rejection;
+- hash record counts;
+- plate BST insertion, lookup, deletion, and deep copy;
+- name BST lookup and deletion;
+- queue front/rear/dequeue behavior;
+- stack push/pop behavior.
+
+GitHub Actions builds the application and runs the smoke tests on every push and pull request.
 
 ## Input format
 
-Each record follows this shape:
+Each active record uses:
 
 ```text
-<plate> <brand> <customer name>
+<license-plate> <brand> <customer name>
 ```
 
-For example:
+Example:
 
 ```text
 I415HKH Tesla John Plemmons
 E068UHK Porsche Ada Lovelace
 ```
 
+The sample file contains 25 records. The application has a maximum active capacity of 50 records.
+
+## Data structures and complexity
+
+| Structure | Operation | Typical complexity |
+| --- | --- | --- |
+| Hash table | plate search | O(1) average |
+| Hash table | insert/remove | O(1) average |
+| BST | search/insert/remove | O(log n) average |
+| BST | search/insert/remove | O(n) worst case |
+| Stack | undo push/pop | O(1) |
+| Active array | delete/compact | O(n) |
+
+The hash function is deterministic. This is important because the same license plate must resolve to the same bucket during insert, search, and removal.
+
+## Improvements in this revision
+
+The original academic implementation had several correctness and maintainability issues. The current version fixes them without changing the project's core data-structure design:
+
+- deterministic hashing instead of a time-dependent bucket calculation;
+- no per-lookup hash-array memory leak;
+- correct hash record counts after deletion;
+- duplicate license-plate protection;
+- safe hash-table destruction;
+- deep-copy support for the binary-tree base class;
+- correct BST node counts;
+- corrected queue rear return value;
+- portable local-time handling for Windows and POSIX;
+- robust file parsing without the classic `while (!eof())` bug;
+- correct active-record removal instead of leaving deleted vehicles in the array;
+- repaired search logic and removed out-of-bounds indexing;
+- undo now restores all three indexes and the active record list;
+- backup now reflects the current active records;
+- CMake + automated smoke tests;
+- reproducible animated demo generation.
+
 ## Repository guide
 
 | File | Purpose |
 | --- | --- |
-| `main.cpp` | Application menu and orchestration |
-| `CustomerData.h/.cpp` | Customer/vehicle model and time calculations |
-| `Hash.h` | Hash-table implementation |
-| `BinaryTree.h` | Base binary-tree implementation |
-| `BinarySearchTreePlate.h` | Plate-keyed BST |
-| `BinarySearchTreeName.h` | Name-keyed BST |
+| `main.cpp` | Interactive application and workflow |
+| `CustomerData.h/.cpp` | Vehicle/customer model and parking-time logic |
+| `Hash.h` | Separate-chaining hash table |
+| `BinaryTree.h` | Shared binary-tree ownership/traversal |
+| `BinarySearchTreePlate.h` | License-plate BST |
+| `BinarySearchTreeName.h` | Customer-name BST |
 | `Stack.h` | Undo stack |
-| `customerInfo.txt` | Sample input records |
-| `BackUp.txt` | Historical backup/output data |
+| `Queue.h` | Breadth-first traversal queue |
+| `demo.cpp` | Deterministic portfolio/demo executable |
+| `tests/data_structure_smoke.cpp` | Core data-structure tests |
+| `CMakeLists.txt` | Portable build/test configuration |
+| `customerInfo.txt` | Sample active records |
 
-## Project context
+## Historical context
 
-This was a team academic project. The original source header credits **Tung Lin Lee** as the primary programmer and **Hoang Duong Vu** with function development, with additional team members contributing stability/testing work. Those original attributions are preserved here so the portfolio description matches the source history.
+This was originally a CIS 22C team academic project. The source attribution in the original files is preserved rather than rewriting the project's history.
 
-## What this project demonstrates
-
-The project is primarily a data-structures exercise: the same domain records are indexed in different ways so the program can support **fast key lookup, sorted traversal, secondary-key access, and reversible deletion** without relying on standard-library containers for every operation.
+The repository name is historical and does not describe the implementation currently stored here.
