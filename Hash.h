@@ -161,8 +161,7 @@ bool HashList<ItemType>::search(const std::string& encode) const
 template <class ItemType>
 void HashList<ItemType>::printTable() const
 {
-    std::cout << "
-The number of cars is: " << itemCount << '\n';
+    std::cout << "\nThe number of cars is: " << itemCount << '\n';
     std::cout << "Listed by plate number (primary key):\n";
 
     for (int i = 0; i < TABLE_SIZE; ++i)
