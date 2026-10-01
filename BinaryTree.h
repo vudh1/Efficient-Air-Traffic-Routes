@@ -1,276 +1,271 @@
-/****************************************************
-CIS 22C
-Programmer: Nithin Nediyanchath
-
-Assistants: Hoang Duong Vu(Check the stability), Tung Lin Lee(Check the stability)
-******************************************************/
-
 #ifndef _BINARY_TREE
 #define _BINARY_TREE
 
 #include "BinaryNode.h"
 #include "Queue.h"
 
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <string>
-
-using namespace std;
 
 template<class ItemType>
 class BinaryTree
 {
 protected:
-	BinaryNode<ItemType>* rootPtr;
-	BinaryNode<ItemType>* targetPtr;// ptr to root node
-	int count; // number of nodes in tree
+    BinaryNode<ItemType>* rootPtr;
+    int count;
 
 public:
-	// "admin" functions
-	int indent = 0;
-	string target =" ";
-	BinaryTree() { rootPtr = 0; count = 0; }
-	BinaryTree(const BinaryTree<ItemType> & tree);
-	virtual ~BinaryTree();
-	BinaryTree & operator = (const BinaryTree & sourceTree);
+    BinaryTree() : rootPtr(nullptr), count(0) {}
+    BinaryTree(const BinaryTree& tree);
+    virtual ~BinaryTree();
 
-	// common functions for all binary trees
-	bool isEmpty() const { return count == 0; }
-	int size()const{ return count; };
-	void clear()			{ destroyTree(rootPtr); rootPtr = 0; count = 0; }
-	void preOrder(void visit(ItemType &)) const { _preorder(visit, rootPtr); }
-	void inOrder(void visit(ItemType &)) const  { _inorder(visit, rootPtr); }
-	void postOrder(void visit(ItemType &)) const { _postorder(visit, rootPtr); }
+    BinaryTree& operator=(const BinaryTree& sourceTree);
 
-	//Breadth First Traversal function
-	void BreadthFirstTraversal(void visit(ItemType &)) const{ _BreadthFirstTraversal(visit, rootPtr); }
+    bool isEmpty() const { return count == 0; }
+    int size() const { return count; }
 
-	//findItem function
-	void findItem(void visit(ItemType &), string target){ _findItem(visit, rootPtr, target); }
+    void clear()
+    {
+        destroyTree(rootPtr);
+        rootPtr = nullptr;
+        count = 0;
+    }
 
-	//print tree in indented list
-	void indentedList(void visit(ItemType &)){ _indentedList(visit, rootPtr, indent); }
-	void deleteLeaf(void visit(ItemType &), string target){
-		targetPtr = NULL;
-		_findItem(visit, rootPtr, target);
-		if (targetPtr != NULL)
-			_deleteLeaf(visit, targetPtr, rootPtr);
-	}
+    void preOrder(void visit(ItemType&)) const
+    {
+        _preorder(visit, rootPtr);
+    }
 
-	BinaryNode<ItemType>* minValueNode(BinaryNode<ItemType>*);
+    void inOrder(void visit(ItemType&)) const
+    {
+        _inorder(visit, rootPtr);
+    }
 
-	//abstract functions to be implemented by derived class
-	virtual bool insert(const ItemType & newData) = 0;
-	virtual bool remove(const ItemType & data) = 0;
-	virtual bool getEntry(const ItemType & anEntry, ItemType & returnedItem) const = 0;
+    void postOrder(void visit(ItemType&)) const
+    {
+        _postorder(visit, rootPtr);
+    }
+
+    void BreadthFirstTraversal(void visit(ItemType&)) const
+    {
+        _breadthFirstTraversal(visit, rootPtr);
+    }
+
+    // Kept for compatibility with the original project.
+    void findItem(void visit(ItemType&), std::string target)
+    {
+        _findItem(visit, rootPtr, target);
+    }
+
+    void indentedList(void visit(ItemType&)) const
+    {
+        _indentedList(visit, rootPtr, 0);
+    }
+
+    BinaryNode<ItemType>* minValueNode(BinaryNode<ItemType>* node);
+
+    virtual bool insert(const ItemType& newData) = 0;
+    virtual bool remove(const ItemType& data) = 0;
+    virtual bool getEntry(const ItemType& entry,
+                          ItemType& returnedItem) const = 0;
 
 private:
-	// delete all nodes from the tree
-	void destroyTree(BinaryNode<ItemType>* nodePtr);
-	// copy from the tree rooted at nodePtr and returns a pointer to the copy
-	BinaryNode<ItemType>* copyTree(const BinaryNode<ItemType>* nodePtr);
+    void destroyTree(BinaryNode<ItemType>* nodePtr);
 
-	// internal traverse
-	void _preorder(void visit(ItemType &), BinaryNode<ItemType>* nodePtr) const;
-	void _inorder(void visit(ItemType &), BinaryNode<ItemType>* nodePtr) const;
-	void _postorder(void visit(ItemType &), BinaryNode<ItemType>* nodePtr)const;
+    BinaryNode<ItemType>* copyTree(
+        const BinaryNode<ItemType>* nodePtr);
 
+    void _preorder(void visit(ItemType&),
+                   BinaryNode<ItemType>* nodePtr) const;
+    void _inorder(void visit(ItemType&),
+                  BinaryNode<ItemType>* nodePtr) const;
+    void _postorder(void visit(ItemType&),
+                    BinaryNode<ItemType>* nodePtr) const;
 
-	void _BreadthFirstTraversal(void visit(ItemType &), BinaryNode<ItemType>* nodePtr) const;
-	void _findItem(void visit(ItemType &), BinaryNode<ItemType>* nodePtr, string target);
-	void _indentedList(void visit(ItemType &), BinaryNode<ItemType>* nodePtr, int indent);
-	BinaryNode<ItemType>* _deleteLeaf(void visit(ItemType &), BinaryNode<ItemType>* targetPtr, BinaryNode<ItemType>* nodePtr);
+    void _breadthFirstTraversal(
+        void visit(ItemType&),
+        BinaryNode<ItemType>* nodePtr) const;
 
+    void _findItem(void visit(ItemType&),
+                   BinaryNode<ItemType>* nodePtr,
+                   const std::string& target);
+
+    void _indentedList(void visit(ItemType&),
+                       BinaryNode<ItemType>* nodePtr,
+                       int indent) const;
 };
 
-//////////////////////////////////////////////////////////////////////////
-
 template<class ItemType>
-BinaryTree<ItemType>::BinaryTree(const BinaryTree & tree)
+BinaryTree<ItemType>::BinaryTree(const BinaryTree& tree)
+    : rootPtr(copyTree(tree.rootPtr)), count(tree.count)
 {
-	rootPtr = tree.rootPtr;
-	count = tree.count;
 }
 
 template<class ItemType>
-BinaryNode<ItemType>* BinaryTree<ItemType>::copyTree(const BinaryNode<ItemType>* nodePtr)
+BinaryNode<ItemType>* BinaryTree<ItemType>::copyTree(
+    const BinaryNode<ItemType>* nodePtr)
 {
+    if (nodePtr == nullptr)
+        return nullptr;
 
+    BinaryNode<ItemType>* copy =
+        new BinaryNode<ItemType>(nodePtr->getItem());
+
+    copy->setLeftPtr(copyTree(nodePtr->getLeftPtr()));
+    copy->setRightPtr(copyTree(nodePtr->getRightPtr()));
+    return copy;
 }
 
 template<class ItemType>
 BinaryTree<ItemType>::~BinaryTree()
 {
-	if (rootPtr)
-	{
-		destroyTree(rootPtr);
-	}
+    destroyTree(rootPtr);
+}
+
+template<class ItemType>
+BinaryTree<ItemType>& BinaryTree<ItemType>::operator=(
+    const BinaryTree<ItemType>& sourceTree)
+{
+    if (this == &sourceTree)
+        return *this;
+
+    clear();
+    rootPtr = copyTree(sourceTree.rootPtr);
+    count = sourceTree.count;
+    return *this;
 }
 
 template<class ItemType>
 void BinaryTree<ItemType>::destroyTree(BinaryNode<ItemType>* nodePtr)
 {
-	if (nodePtr)
-	{
-		destroyTree(nodePtr->getLeftPtr());
-		destroyTree(nodePtr->getRightPtr());
-		delete nodePtr;
-	}
-}
+    if (nodePtr == nullptr)
+        return;
 
-//preorder root,left,right
-template<class ItemType>
-void BinaryTree<ItemType>::_preorder(void visit(ItemType &), BinaryNode<ItemType>* nodePtr) const
-{
-	if (nodePtr != 0)
-	{
-		ItemType item = nodePtr->getItem();
-		visit(item);
-		_preorder(visit, nodePtr->getLeftPtr());
-		_preorder(visit, nodePtr->getRightPtr());
-	}
-}
-
-//inorder left/root/right
-template<class ItemType>
-void BinaryTree<ItemType>::_inorder(void visit(ItemType &), BinaryNode<ItemType>* nodePtr) const
-{
-	if (nodePtr)
-	{
-		ItemType item = nodePtr->getItem();
-		_inorder(visit, nodePtr->getLeftPtr());
-		visit(item);
-		_inorder(visit, nodePtr->getRightPtr());
-	}
-}
-
-//postorder left/right/root
-template<class ItemType>
-void BinaryTree<ItemType>::_postorder(void visit(ItemType &), BinaryNode<ItemType>* nodePtr) const
-{
-	if (nodePtr)
-	{
-		ItemType item = nodePtr->getItem();
-		_postorder(visit, nodePtr->getLeftPtr());
-		_postorder(visit, nodePtr->getRightPtr());
-		visit(item);
-	}
+    destroyTree(nodePtr->getLeftPtr());
+    destroyTree(nodePtr->getRightPtr());
+    delete nodePtr;
 }
 
 template<class ItemType>
-BinaryTree<ItemType> & BinaryTree<ItemType>::operator=(const BinaryTree<ItemType> & sourceTree)
+void BinaryTree<ItemType>::_preorder(
+    void visit(ItemType&),
+    BinaryNode<ItemType>* nodePtr) const
 {
+    if (nodePtr == nullptr)
+        return;
 
-}
-
-
-//breadth first traversal
-template<class ItemType>
-void BinaryTree<ItemType>::_BreadthFirstTraversal(void visit(ItemType &), BinaryNode<ItemType>* nodePtr) const
-{
-	Queue<BinaryNode<ItemType>*> q;
-	BinaryNode<ItemType>* current;
-	BinaryNode<ItemType>* tempNode;
-
-	if (!nodePtr)
-		return;
-
-	for (q.enqueue(nodePtr); !q.isEmpty(); q.dequeue(current)){
-		q.queueFront(tempNode);
-		if (tempNode == NULL){
-			cout << "   ";
-			continue;
-		}
-		else cout << tempNode->getItem() << endl;
-
-		if (tempNode->getLeftPtr())
-			q.enqueue(tempNode->getLeftPtr());//display subtree from the left side
-
-		if (tempNode->getRightPtr()) {
-			q.enqueue(tempNode->getRightPtr());//display subtree from the right side
-		}
-	}
-}
-
-
-template<class ItemType>
-void BinaryTree<ItemType>::_findItem(void visit(ItemType &), BinaryNode<ItemType>* nodePtr, string target)
-{
-	if (nodePtr)
-	{//using postorder to traverse through tree to find target
-		ItemType item = nodePtr->getItem();
-
-		_findItem(visit, nodePtr->getLeftPtr(), target);
-		_findItem(visit, nodePtr->getRightPtr(), target);
-		if (item *= target){
-			visit(item);//prstring target
-			targetPtr = nodePtr;
-		}
-	}
-}
-
-
-template<class ItemType>
-void BinaryTree<ItemType>::_indentedList(void visit(ItemType &), BinaryNode<ItemType>* nodePtr, int indent)
-{
-
-	if (nodePtr != NULL) {
-		if (nodePtr->getRightPtr())
-			_indentedList(visit, nodePtr->getRightPtr(), indent + 5);
-		if (indent)
-			cout << setw(indent) << ' ';
-		if (nodePtr->getRightPtr())
-			cout << "\n" << setw(indent) << ' ';
-		cout << ((indent + 5) / 5) << ". " << nodePtr->getItem() << "\n ";
-		if (nodePtr->getLeftPtr()){
-			cout << setw(indent) << ' ' << "\n";
-			_indentedList(visit, nodePtr->getLeftPtr(), indent + 5);
-		}
-	}
+    ItemType item = nodePtr->getItem();
+    visit(item);
+    _preorder(visit, nodePtr->getLeftPtr());
+    _preorder(visit, nodePtr->getRightPtr());
 }
 
 template<class ItemType>
-BinaryNode<ItemType>* BinaryTree<ItemType>::minValueNode(BinaryNode<ItemType>* nodePtr)
+void BinaryTree<ItemType>::_inorder(
+    void visit(ItemType&),
+    BinaryNode<ItemType>* nodePtr) const
 {
-	BinaryNode<ItemType>* current = nodePtr;
+    if (nodePtr == nullptr)
+        return;
 
-	while (current->getLeftPtr() != NULL)
-		current = current->getLeftPtr();
-	return current;
+    _inorder(visit, nodePtr->getLeftPtr());
+    ItemType item = nodePtr->getItem();
+    visit(item);
+    _inorder(visit, nodePtr->getRightPtr());
 }
 
 template<class ItemType>
-BinaryNode<ItemType>* BinaryTree<ItemType>::_deleteLeaf(void visit(ItemType &), BinaryNode<ItemType>* targetPtr, BinaryNode<ItemType>* nodePtr)
+void BinaryTree<ItemType>::_postorder(
+    void visit(ItemType&),
+    BinaryNode<ItemType>* nodePtr) const
 {
-	if (nodePtr == NULL)
-		return nodePtr;
+    if (nodePtr == nullptr)
+        return;
 
-	if (nodePtr->getItem>>targetPtr->getItem())
-		_deleteNode(visit, targetPtr, nodePtr->getLeftPtr());
-	else if (nodePtr->getItem()<<targetPtr->getItem())
-		 _deleteLeaf(visit, targetPtr, nodePtr->getRightPtr());
-	else{
-		if (nodePtr->getLeftPtr() == NULL)
-		{
-			BinaryNode<ItemType>* temp = nodePtr->getRightPtr();
-			free(nodePtr);
-			return temp;
-		}
-		else if (nodePtr->getRightPtr() == NULL)
-		{
-			BinaryNode<ItemType>* temp = nodePtr->getLeftPtr();
-			free(nodePtr);
-			return temp;
-		}
-
-		BinaryNode<ItemType>* temp = minValueNode(nodePtr->getRightPtr());
-
-		nodePtr->getItem() = temp->getItem();
-		_deleteLeaf(visit, targetPtr, nodePtr->getRightPtr());
-	}
-	return nodePtr;
+    _postorder(visit, nodePtr->getLeftPtr());
+    _postorder(visit, nodePtr->getRightPtr());
+    ItemType item = nodePtr->getItem();
+    visit(item);
 }
 
+template<class ItemType>
+void BinaryTree<ItemType>::_breadthFirstTraversal(
+    void visit(ItemType&),
+    BinaryNode<ItemType>* nodePtr) const
+{
+    if (nodePtr == nullptr)
+        return;
+
+    Queue<BinaryNode<ItemType>*> queue;
+    queue.enqueue(nodePtr);
+
+    while (!queue.isEmpty())
+    {
+        BinaryNode<ItemType>* current = nullptr;
+        queue.dequeue(current);
+
+        ItemType item = current->getItem();
+        visit(item);
+
+        if (current->getLeftPtr() != nullptr)
+            queue.enqueue(current->getLeftPtr());
+
+        if (current->getRightPtr() != nullptr)
+            queue.enqueue(current->getRightPtr());
+    }
+}
+
+template<class ItemType>
+void BinaryTree<ItemType>::_findItem(
+    void visit(ItemType&),
+    BinaryNode<ItemType>* nodePtr,
+    const std::string& target)
+{
+    if (nodePtr == nullptr)
+        return;
+
+    // The original project used this compatibility hook with
+    // customerData's name comparison operator.
+    ItemType item = nodePtr->getItem();
+    _findItem(visit, nodePtr->getLeftPtr(), target);
+    _findItem(visit, nodePtr->getRightPtr(), target);
+
+    if (item.getName() == target)
+        visit(item);
+}
+
+template<class ItemType>
+void BinaryTree<ItemType>::_indentedList(
+    void visit(ItemType&),
+    BinaryNode<ItemType>* nodePtr,
+    int indent) const
+{
+    if (nodePtr == nullptr)
+        return;
+
+    if (nodePtr->getRightPtr() != nullptr)
+        _indentedList(visit, nodePtr->getRightPtr(), indent + 5);
+
+    std::cout << std::setw(indent) << ' ';
+    ItemType item = nodePtr->getItem();
+    std::cout << ((indent + 5) / 5) << ". ";
+    visit(item);
+    std::cout << '
+';
+
+    if (nodePtr->getLeftPtr() != nullptr)
+        _indentedList(visit, nodePtr->getLeftPtr(), indent + 5);
+}
+
+template<class ItemType>
+BinaryNode<ItemType>* BinaryTree<ItemType>::minValueNode(
+    BinaryNode<ItemType>* nodePtr)
+{
+    BinaryNode<ItemType>* current = nodePtr;
+    while (current != nullptr && current->getLeftPtr() != nullptr)
+        current = current->getLeftPtr();
+    return current;
+}
 
 #endif
-
