@@ -1,57 +1,55 @@
-/****************************************************
-CIS 22C
-Programmer: Duong Hoang Vu
-
-Assistants: Tung Lin Lee ()
-******************************************************/
-
 #ifndef CUSTOMERDATA_H_INCLUDED
 #define CUSTOMERDATA_H_INCLUDED
 
 #include <iostream>
 #include <string>
-#include <ctime>
-using namespace std;
 
 class customerData
 {
 private:
-	static const int tableSize = 50;
-	string plateNumber, name, brand;
-	int timeIn, timeOut, timeLength;
+    std::string plateNumber;
+    std::string name;
+    std::string brand;
+    int timeIn;
+    int timeOut;
+    int timeLength;
+
 public:
-	customerData();
-	customerData(string entryName);
-	~customerData(){}
+    customerData();
+    explicit customerData(const std::string& entryName);
+    ~customerData() = default;
 
-	void setPlate(string);
-	void setName(string);
-	void setBrand(string);
+    void setPlate(const std::string& value);
+    void setName(const std::string& value);
+    void setBrand(const std::string& value);
 
-	string getPlate() const;
-	string getName() const;
-	string getBrand()const;
+    std::string getPlate() const;
+    std::string getName() const;
+    std::string getBrand() const;
 
-	void setTimeIn(int);
-	void getTimeIn();
-	void getTimeOut();
-	int getTimeLength();
+    void setTimeIn(int minutes);
+    void getTimeIn();
+    void getTimeOut();
+    int getTimeLength() const;
 
-	bool operator < (const customerData& b) const;
-	bool operator <= (const customerData& b) const;
-	bool operator == (const customerData& b) const;
-	bool operator > (const customerData& b) const;
-	bool operator >= (const customerData& b) const;
-	bool operator != (const customerData& b) const;
-	friend ostream& operator << (ostream& os, const customerData& obj);
+    // Primary-key comparisons: license plate.
+    bool operator<(const customerData& other) const;
+    bool operator<=(const customerData& other) const;
+    bool operator==(const customerData& other) const;
+    bool operator>(const customerData& other) const;
+    bool operator>=(const customerData& other) const;
+    bool operator!=(const customerData& other) const;
 
+    // Secondary-key comparisons: customer name.
+    bool operator<<(const customerData& other) const;
+    bool operator<<=(const customerData& other) const;
+    bool operator*=(const customerData& other) const;
+    bool operator>>(const customerData& other) const;
+    bool operator>>=(const customerData& other) const;
+    bool operator|=(const customerData& other) const;
 
-	bool operator << (const customerData& b) const;
-	bool operator <<= (const customerData& b) const;
-	bool operator *= (const customerData& b) const;
-	bool operator >> (const customerData& b) const;
-	bool operator >>= (const customerData& b) const;
-	bool operator |= (const customerData& b) const;
-
+    friend std::ostream& operator<<(std::ostream& os,
+                                    const customerData& obj);
 };
-#endif // CUSTOMERDATA_H_INCLUDED
+
+#endif
