@@ -251,8 +251,7 @@ void BinaryTree<ItemType>::_indentedList(
     ItemType item = nodePtr->getItem();
     std::cout << ((indent + 5) / 5) << ". ";
     visit(item);
-    std::cout << '
-';
+    std::cout << '\n';
 
     if (nodePtr->getLeftPtr() != nullptr)
         _indentedList(visit, nodePtr->getLeftPtr(), indent + 5);
