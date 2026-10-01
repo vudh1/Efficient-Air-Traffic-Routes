@@ -21,6 +21,11 @@ add_executable(data_structure_smoke_test
     CustomerData.cpp
 )
 
+add_executable(valet_demo
+    demo.cpp
+    CustomerData.cpp
+)
+
 target_compile_options(data_structure_smoke_test PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
 )
