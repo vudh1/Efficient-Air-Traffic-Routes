@@ -119,7 +119,7 @@ void Queue<T>::print() const
     QueueNode* current = front;
     while (current != nullptr)
     {
-        std::cout << current->value << '\\n';
+        std::cout << current->value << '\n';
         current = current->next;
     }
 }
