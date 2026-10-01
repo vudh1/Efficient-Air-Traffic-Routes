@@ -11,8 +11,6 @@
 #include "Hash.h"
 #include "Stack.h"
 
-namespace
-{
 constexpr int MAX_SIZE = 50;
 constexpr int PARKING_RATE_CENTS_PER_MINUTE = 4;
 
@@ -34,7 +32,6 @@ void display(customerData& item);
 void saveData(const char fileName[],
               const customerData data[],
               int countData);
-}
 
 int main()
 {
