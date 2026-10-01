@@ -25,6 +25,9 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure -C Release
 
+      - name: Run application smoke test
+        run: printf 'q\n' | ./build/valet
+
       - name: Run portfolio demo
         run: ./build/valet_demo > demo-output.txt
 
