@@ -1,259 +1,263 @@
-/****************************************************
-CIS 22C
-Programmer: Duong Hoang Vu
-This file will deal with hashing the data into the hash table
-
-Assistants: Tung Lin Lee(Function developer), Risako Numamoto(Check the stability & statistic & load factor)
-******************************************************/
-
 #ifndef HASH_H_INCLUDED
 #define HASH_H_INCLUDED
 
-#include <iostream>
 #include <fstream>
+#include <functional>
+#include <iostream>
 #include <string>
-#include <ctime>
-#include <cstdlib>
 
-using namespace std;
 template <class ItemType>
 class HashList
 {
 private:
-	static const int TABLE_SIZE = 50;
-	struct Item
-	{
-		string code;
-		Item *next;
-		ItemType data;
-		Item();
-		Item(const string& code, const ItemType& data);
-	};
-	int itemCount;
-	Item* hashTable[TABLE_SIZE];
+    static const int TABLE_SIZE = 50;
+
+    struct Item
+    {
+        std::string code;
+        Item* next;
+        ItemType data;
+
+        Item(const std::string& codeValue, const ItemType& dataValue)
+            : code(codeValue), next(nullptr), data(dataValue)
+        {
+        }
+    };
+
+    int itemCount;
+    Item* hashTable[TABLE_SIZE];
+
+    void clear();
+    int bucketSize(int index) const;
+
 public:
-	HashList();
-	int randomNum() const;
-	int hashAddress(string key) const;
-	bool removeItem(string code);
-	bool search(string code);
-	bool add(ItemType data, string plateNum);
-	void printTable() const;
-	void printItemsInIndex(int index) const;
-	void output();
-	void stattistic();
+    HashList();
+    ~HashList();
+
+    HashList(const HashList&) = delete;
+    HashList& operator=(const HashList&) = delete;
+
+    int hashAddress(const std::string& key) const;
+    bool removeItem(const std::string& code);
+    bool search(const std::string& code) const;
+    bool add(const ItemType& data, const std::string& plateNum);
+    void printTable() const;
+    void printItemsInIndex(int index) const;
+    bool output(const std::string& fileName = "output.txt") const;
+    void stattistic() const;
+    int size() const { return itemCount; }
 };
 
 template <class ItemType>
-HashList<ItemType>::Item::Item()
+HashList<ItemType>::HashList() : itemCount(0)
 {
-	code = "";
-	next = NULL;
+    for (auto& bucket : hashTable)
+        bucket = nullptr;
 }
 
 template <class ItemType>
-HashList<ItemType>::Item::Item(const string &code, const ItemType &data)
+HashList<ItemType>::~HashList()
 {
-	this->code = code;
-	this->data = data;
-	next = NULL;
+    clear();
 }
 
 template <class ItemType>
-HashList<ItemType>::HashList()
+void HashList<ItemType>::clear()
 {
-	itemCount = 0;
-	for (int i = 0; i < TABLE_SIZE; i++)
-	{
-		hashTable[i] = NULL;
-	}
-}
-
-
-template <class ItemType>
-int HashList<ItemType>::randomNum() const
-{
-	srand(time(0));
-	int randomNum1 = 0, randomNum2 = 0, randomNum3 = 0, result = 0;
-	randomNum1 = rand() % 9 + 1;
-	for (int i = 0; i < randomNum1; i++)
-	{
-		randomNum2 = rand() % 5 + 1;
-		randomNum3  = rand() % 6 + 1;
-		result = (randomNum2 + randomNum3) / 2;
-	}
-	return result;
+    for (auto& bucket : hashTable)
+    {
+        while (bucket != nullptr)
+        {
+            Item* next = bucket->next;
+            delete bucket;
+            bucket = next;
+        }
+    }
+    itemCount = 0;
 }
 
 template <class ItemType>
-int HashList<ItemType>::hashAddress(string key) const
+int HashList<ItemType>::hashAddress(const std::string& key) const
 {
-	int index = 0, sum = 0, ranNum = 0;
-	ranNum = randomNum();
-	int *ascii = new int[key.length()];
-	for (int i = 0; i < key.length(); i++)
-	{
-		ascii[i] = (int)key[i];
-		sum = sum + ascii[i];
-	}
-	index = (sum * sum * sum *  ranNum * ranNum) % TABLE_SIZE;
-	return index;
+    // Deterministic polynomial hash. A key must map to the same bucket
+    // for add/search/remove to remain consistent.
+    std::size_t hash = 0;
+    for (unsigned char ch : key)
+        hash = hash * 31u + ch;
+
+    return static_cast<int>(hash % TABLE_SIZE);
 }
 
 template <class ItemType>
-bool HashList<ItemType>::add(ItemType entryData, string encode)
+bool HashList<ItemType>::add(const ItemType& entryData,
+                             const std::string& encode)
 {
-	int index = hashAddress(encode);
-	Item* n = new Item(encode, entryData);
-	if (hashTable[index] == NULL)
-	{
-		hashTable[index] = n;
-	}
-	else
-	{
-		Item* ptr = hashTable[index];
-		while (ptr->next != NULL)
-		{
-			ptr = ptr->next;
-		}
-		ptr->next = n;
-	}
-	itemCount++;
-	return true;
+    if (encode.empty() || search(encode))
+        return false;
+
+    const int index = hashAddress(encode);
+    Item* node = new Item(encode, entryData);
+
+    if (hashTable[index] == nullptr)
+    {
+        hashTable[index] = node;
+    }
+    else
+    {
+        Item* tail = hashTable[index];
+        while (tail->next != nullptr)
+            tail = tail->next;
+        tail->next = node;
+    }
+
+    ++itemCount;
+    return true;
+}
+
+template <class ItemType>
+bool HashList<ItemType>::removeItem(const std::string& encode)
+{
+    const int index = hashAddress(encode);
+    Item* current = hashTable[index];
+    Item* previous = nullptr;
+
+    while (current != nullptr)
+    {
+        if (current->code == encode)
+        {
+            if (previous == nullptr)
+                hashTable[index] = current->next;
+            else
+                previous->next = current->next;
+
+            delete current;
+            --itemCount;
+            return true;
+        }
+
+        previous = current;
+        current = current->next;
+    }
+
+    return false;
+}
+
+template <class ItemType>
+bool HashList<ItemType>::search(const std::string& encode) const
+{
+    const int index = hashAddress(encode);
+    const Item* current = hashTable[index];
+
+    while (current != nullptr)
+    {
+        if (current->code == encode)
+            return true;
+        current = current->next;
+    }
+
+    return false;
 }
 
 template <class ItemType>
 void HashList<ItemType>::printTable() const
 {
-	cout << endl<<"The number of cars is: " << itemCount << endl;
-	cout << "Listed by plate number (Primary key): " << endl;
-	for (int i = 0; i < TABLE_SIZE; i++)
-	{
-		printItemsInIndex(i);
-	}
+    std::cout << "
+The number of cars is: " << itemCount << '
+';
+    std::cout << "Listed by plate number (primary key):
+";
+
+    for (int i = 0; i < TABLE_SIZE; ++i)
+        printItemsInIndex(i);
 }
 
 template <class ItemType>
 void HashList<ItemType>::printItemsInIndex(int index) const
 {
-	Item* ptr = hashTable[index];
-	if (ptr != NULL)
-	{
-		cout << "--------------------------" << endl;
-		cout << "index [" << index << "] contains the following item." << endl;
-		while (ptr != NULL)
-		{
-			cout << ptr->data;
-			ptr = ptr->next;
-		}
-	}
+    if (index < 0 || index >= TABLE_SIZE)
+        return;
+
+    const Item* current = hashTable[index];
+    if (current == nullptr)
+        return;
+
+    std::cout << "--------------------------
+";
+    std::cout << "index [" << index << "] contains:
+";
+
+    while (current != nullptr)
+    {
+        std::cout << current->data << '
+';
+        current = current->next;
+    }
 }
 
 template <class ItemType>
-bool HashList<ItemType>::removeItem(string encode)
+bool HashList<ItemType>::output(const std::string& fileName) const
 {
-	bool status = false;
-	int index = hashAddress(encode);
-	Item *ptr = hashTable[index];
-	Item *prev = NULL;
+    std::ofstream fout(fileName);
+    if (!fout)
+        return false;
 
-	while (ptr != NULL)
-	{
-		if (ptr->code == encode)
-		{
-			if (prev == NULL && ptr->next != NULL)
-			{
-				hashTable[index] = ptr->next;
-			}
-			else if (prev == NULL && ptr->next == NULL)
-			{
-				hashTable[index] = NULL;
-			}
-			else
-			{
-				prev->next = ptr->next;
-			}
-			delete ptr;
-			status = true;
-			cout << "Have deleted..." << endl;
-			break;
-		}
-		prev = ptr;
-		ptr = ptr->next;
-	}
-	return status;
+    for (int i = 0; i < TABLE_SIZE; ++i)
+    {
+        const Item* current = hashTable[i];
+        while (current != nullptr)
+        {
+            fout << current->code << ' ' << current->data << '
+';
+            current = current->next;
+        }
+    }
+
+    return true;
 }
 
 template <class ItemType>
-void HashList<ItemType>::output()
+int HashList<ItemType>::bucketSize(int index) const
 {
-	ofstream fout;
-	const char fileName[] = "output.txt";
-	fout.open(fileName);
-	for (int i = 0; i < TABLE_SIZE; i++)
-	{
-		Item* ptr = hashTable[i];
-		if (ptr != NULL)
-		{
-			while (ptr != NULL)
-			{
-				fout << ptr->code << " " << ptr->data << endl;
-				ptr = ptr->next;
-			}
-		}
-	}
+    int count = 0;
+    const Item* current = hashTable[index];
+
+    while (current != nullptr)
+    {
+        ++count;
+        current = current->next;
+    }
+
+    return count;
 }
 
 template <class ItemType>
-bool HashList<ItemType>::search(string entryCode)
+void HashList<ItemType>::stattistic() const
 {
-	int index = hashAddress(entryCode);
-	bool status = false;
-	for (int i = 0; i < TABLE_SIZE; i++)
-	{
-		Item *ptr = hashTable[i];
-		while (ptr)
-		{
-			if (ptr->code == entryCode)
-			{
-				status = true;
-				break;
-			}
-			ptr = ptr->next;
-		}
-	}
-	return status;
+    int usedBuckets = 0;
+    int longestChain = 0;
+
+    for (int i = 0; i < TABLE_SIZE; ++i)
+    {
+        const int size = bucketSize(i);
+        if (size > 0)
+            ++usedBuckets;
+        if (size > longestChain)
+            longestChain = size;
+    }
+
+    const double loadFactor =
+        static_cast<double>(itemCount) / TABLE_SIZE;
+
+    std::cout << "Hash table buckets: " << TABLE_SIZE << '
+';
+    std::cout << "Stored records: " << itemCount << '
+';
+    std::cout << "Used buckets: " << usedBuckets << '
+';
+    std::cout << "Load factor: " << loadFactor << '
+';
+    std::cout << "Longest chain: " << longestChain << '
+';
 }
 
-template <class ItemType>
-void HashList<ItemType>::stattistic()
-{
-	int index = 0;
-	int linkedListCnt = 0, counter[TABLE_SIZE] = { 0 };
-	for (int i = 0; i < TABLE_SIZE; i++)
-	{
-		Item *ptr = hashTable[i];
-		while (ptr)
-		{
-			if (ptr->next != NULL)
-			{
-				if (i > 0 && counter[i - 1] < counter[i])
-				{
-					index = i;
-				}
-				counter[i]++;
-			}
-			ptr = ptr->next;
-		}
-		if (counter[i] > 0)
-		{
-			linkedListCnt++;
-		}
-	}
-	double tempLinkedListCut = linkedListCnt, tempTABLE_SIZE = TABLE_SIZE;
-	cout << "The hash table has " << TABLE_SIZE << "spots" << endl;
-	cout << "This hash table includes [" << linkedListCnt << "] linked lists" << endl;
-	cout << "So, the load factor is " << linkedListCnt << "/" << TABLE_SIZE << " = " << (linkedListCnt * 100) / TABLE_SIZE << "%" << endl;
-	cout << "The longest list with index [" << index << "] is: " << counter[index] << endl;
-}
-#endif // HASH_H_INCLUDED
+#endif
