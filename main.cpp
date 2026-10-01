@@ -1,387 +1,362 @@
-/****************************************************
-CIS 22C Team # 3
-Team members: Tung Lin Lee, Hoang Duong Vu,Nithin Nediyanchath ,Risako Numamoto 
-Programmer: Tung Lin Lee
-Team Project: Smart Valet Parking Service
-Date: 12/9/2016
-IDE: Visual Studio
-This program will put the customer's information into the
-hash table and BST. Then, it will start operate the menu.
-
-Assistants: Hoang Duong Vu(Function deleloper), Nithin Nediyanchath(Check the stability) ,Risako Numamoto(check the stability) 
-******************************************************/
-
-#include <iostream>
-#include <string>
+#include <cctype>
 #include <fstream>
-#include <cstdlib>
 #include <iomanip>
-#include <ctime>
+#include <iostream>
+#include <limits>
+#include <string>
 
-#include "BinarySearchTreePlate.h"
 #include "BinarySearchTreeName.h"
+#include "BinarySearchTreePlate.h"
 #include "CustomerData.h"
 #include "Hash.h"
 #include "Stack.h"
-#define MAX_SIZE 50
-using namespace std;
+
+namespace
+{
+constexpr int MAX_SIZE = 50;
+constexpr int PARKING_RATE_CENTS_PER_MINUTE = 4;
+
 void introduction();
-int buildList(const char fileName[], BinarySearchTreePlate<customerData>* treePtrPlate, BinarySearchTreeName<customerData>* treePtrName, HashList<customerData> &h, customerData data[]);
-void menu(BinarySearchTreePlate<customerData>* treePtrPlate, BinarySearchTreeName<customerData>* treePtrName, HashList<customerData> h, customerData data[], int& countData);
-void display(customerData & anItem);
-void backUp(const char fileName[]);
+int buildList(const char fileName[],
+              BinarySearchTreePlate<customerData>& plateTree,
+              BinarySearchTreeName<customerData>& nameTree,
+              HashList<customerData>& hash,
+              customerData data[]);
+
+void menu(BinarySearchTreePlate<customerData>& plateTree,
+          BinarySearchTreeName<customerData>& nameTree,
+          HashList<customerData>& hash,
+          customerData data[],
+          int& countData);
+
+void display(customerData& item);
+int findIndexByPlate(const customerData data[],
+                     int countData,
+                     const std::string& plate);
+
+void saveData(const char fileName[],
+              const customerData data[],
+              int countData);
+}
 
 int main()
 {
-	customerData data[MAX_SIZE];
-	const char fileName[] = "customerInfo.txt";
-	BinarySearchTreePlate<customerData>* treePtrPlate= new BinarySearchTreePlate<customerData>;
-	BinarySearchTreeName<customerData>* treePtrName = new BinarySearchTreeName<customerData>;
-	HashList<customerData> h;
+    customerData data[MAX_SIZE];
+    const char fileName[] = "customerInfo.txt";
 
-	// indroction info
-	introduction();
+    BinarySearchTreePlate<customerData> plateTree;
+    BinarySearchTreeName<customerData> nameTree;
+    HashList<customerData> hash;
 
-	// Build the hash table, BST
-	int countData = buildList(fileName, treePtrPlate, treePtrName, h, data);
+    introduction();
 
-	// operate the menu
-	menu(treePtrPlate, treePtrName, h, data, countData);
+    const int loaded = buildList(
+        fileName, plateTree, nameTree, hash, data);
 
-	// save a copy of the original file
-	backUp(fileName);
+    if (loaded < 0)
+        return 1;
 
-	return 0;
+    int countData = loaded;
+    menu(plateTree, nameTree, hash, data, countData);
+
+    saveData("BackUp.txt", data, countData);
+    return 0;
 }
 
 void introduction()
 {
-	cout << "---------------------- Welcome to Smart Valet Parking Service ----------------------" << endl;
-	cout << "****************************************************************************************" << endl;
-	cout << "This service can drop & go our cars like the parking service in the mall or De Anza school." << endl;
-	cout << "The application is to put new data on the new car coming in the parking." << endl;
-	cout << "The owner can access to search his / her car and ask for picking up." << endl;
-	cout << "Based on the information, we can delete car data after it leaves, count the parking fee according to "
-		<< "length of time. (cent / hour)" << endl;
-	cout << "****************************************************************************************" << endl;
+    std::cout
+        << "============================================================\n"
+        << "              Smart Valet Parking Service\n"
+        << "============================================================\n"
+        << "Custom hash table + primary/secondary BST indexes + undo\n"
+        << "Parking charge: " << PARKING_RATE_CENTS_PER_MINUTE
+        << " cents per minute.\n\n";
 }
 
-int buildList(const char fileName[], BinarySearchTreePlate<customerData>* treePtrPlate, BinarySearchTreeName<customerData>* treePtrName, HashList<customerData> &h, customerData data[])
+int buildList(const char fileName[],
+              BinarySearchTreePlate<customerData>& plateTree,
+              BinarySearchTreeName<customerData>& nameTree,
+              HashList<customerData>& hash,
+              customerData data[])
 {
-	int timeIn;
-	time_t t = time(0);
-	struct tm in;
-	localtime_s(&in, &t);
-	timeIn = in.tm_hour * 60 + in.tm_min;
+    std::ifstream fin(fileName);
+    if (!fin)
+    {
+        std::cerr << "Unable to open " << fileName << ".\n";
+        return -1;
+    }
 
-	int countData = 0;
-	ifstream fin;
-	fin.open(fileName);
-	string carPlateNum, userName, carBrand;
-	if (!fin)
-	{
-		cerr << "error for opening " << fileName << endl;
-		exit(111);
-	}
-	while (!(fin.eof()))
-	{
-		fin >> carPlateNum;
-		fin >> carBrand;
-		fin.ignore();
-		getline(fin, userName);
-		data[countData].setPlate(carPlateNum);
-		data[countData].setBrand(carBrand);
-		data[countData].setName(userName);
-		data[countData].setTimeIn(timeIn);
-		h.add(data[countData], carPlateNum);
-		treePtrPlate->insert(data[countData]);
-		treePtrName->insert(data[countData]);
-		countData++;
-	}
-	return countData;
+    int count = 0;
+    std::string plate;
+    std::string brand;
+    std::string name;
+
+    while (count < MAX_SIZE && fin >> plate >> brand)
+    {
+        fin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        if (!std::getline(fin, name))
+            break;
+
+        if (name.empty())
+            continue;
+
+        customerData record;
+        record.setPlate(plate);
+        record.setBrand(brand);
+        record.setName(name);
+        record.getTimeIn();
+
+        if (!hash.add(record, plate))
+            continue;
+
+        plateTree.insert(record);
+        nameTree.insert(record);
+        data[count++] = record;
+    }
+
+    return count;
 }
 
-void menu(BinarySearchTreePlate<customerData>* treePtrPlate, BinarySearchTreeName<customerData>* treePtrName, HashList<customerData> h, customerData data[], int& countData)
+int findIndexByPlate(const customerData data[],
+                     int countData,
+                     const std::string& plate)
 {
-	Stack<customerData> undoList;
-	string carPlateNum, userName, carBrand;
-	char choice;
-	do{
-		cout << "\nA - Add new data" << endl;
-		cout << "D - Delete data" << endl;
-		cout << "S - Search the information(primary key/secondary key)" << endl;
-		cout << "L - List unsorted data/ sorted by primary key/ sorted by secondary key/ indented list" << endl;
-		cout << "W - Write data to a file" << endl;
-		cout << "T - Statistics" << endl <<endl;
-		cout << "U - Undo Delete" << endl;
-		cout << "Please enter your choice: ";
-		cin >> choice;
-		cout << "You Enter [" << choice << "]" << endl << endl << endl;
-		switch (tolower(choice))
-		{
-		case('a') :
-		{
-			if (countData <= MAX_SIZE)
-			{
-				int timeIn;
-				time_t t = time(0);
-				struct tm in;
-				localtime_s(&in, &t);
-				timeIn = in.tm_hour * 60 + in.tm_min;
-				cout << "------------------------------------------" << endl;
-				cout << "Please enter the car plate's number: ";
-				cin >> carPlateNum;
-				cout << "Please enter the Name: ";
-				cin.ignore();
-				getline(cin, userName);
-				cout << "Please enter the brand of car: ";
-				cin >> carBrand;
-				cout << "Adding data..." << endl;
-				data[countData].setPlate(carPlateNum);
-				data[countData].setBrand(carBrand);
-				data[countData].setName(userName);
-				data[countData].getTimeIn();
-				data[countData].setTimeIn(timeIn);
-				h.add(data[countData], carPlateNum);
-				treePtrPlate->insert(data[countData]);
-				treePtrName->insert(data[countData]);
-				countData++;
-			}
-			else 
-				cout << "There is not enough space for more car. You need to move car out" << endl;
-			cout << "-------------------------------------------\n" << endl;
-			break;
-		}
-		case('d') :
-		{ 
-			cout << "Please enter the car plate number: ";
-			cin >> carPlateNum;
-			cout << "Please enter the car user name: ";
-			cin.ignore();
-			getline(cin, userName);
-			int check = false;
-			int tempindex = 0;
-			h.removeItem(carPlateNum);
-				while (tempindex < countData&&data[tempindex].getPlate() != carPlateNum)
-				{
-					tempindex++;
-					if (tempindex < countData && data[tempindex].getPlate() == carPlateNum)
-						check = true;
-				}
-						if (tempindex == 0 || check)
-						{
-							data[tempindex].getTimeOut();
-							cout << "The total charge of parking is: " << data[tempindex].getTimeLength() * 4 << " cnets" << endl;		
-							cout << "Car has been found and move out from parking lot" << endl;
-							treePtrPlate->remove(data[tempindex]);
-							treePtrName->remove(data[tempindex]);
-							undoList.push(data[tempindex]);
-						}			  
-					break;
-		}
-		case('s') :
-		{
-			int searchChoice, currentPrice = 0;
-					  bool found = false;
-					  cout << "-------------------------" << endl;
-					  cout << "Which method would you like to search?" << endl;
-					  cout << "By car plate's number (1)" << endl;
-					  cout << "By user's name (2)? " << endl;
-					  cout << "Search by synonym (3)" << endl;
-					  cin >> searchChoice;
-					  if (searchChoice == 1)
-					  {
-						  cout << "Please enter the car plate's number you wish to search: ";
-						  cin >> carPlateNum;
-						  found = h.search(carPlateNum);
-						  int tempindex;
-						  for (tempindex = 0; tempindex < countData && data[tempindex].getPlate() != carPlateNum; tempindex++)
-						  {
-							  if (data[tempindex + 1].getPlate() == carPlateNum)
-							  {
-								  found = true;
-								  cout << "[Found] Customer info:" << endl;
-								  cout << data[tempindex + 1].getPlate() << " " << data[tempindex + 1].getBrand() << " " << data[tempindex + 1].getName() << endl;
-							  }
-						  }
-						  if (found = false)
-							  cerr << "[Failed] Sorry. " << carPlateNum << " does exist in this database." << endl;
-					  }
-					  else if (searchChoice == 2)
-					  {
-						  cout << "Please enter the owner name you wish to search: ";
-						  cin.ignore();
-						  getline(cin, userName);
-						  cout << "Please enter the car plate's number: ";
-						  cin >> carPlateNum;
-						  int tempindex;
-						  for (tempindex = 0; tempindex < countData; tempindex++)
-						  {
-							  if (data[tempindex + 1].getName() == userName)
-							  {
-								  
-								  if (data[tempindex + 1].getPlate() == carPlateNum)
-								  {
-									  found = true;
-									  cout << "[Found]" << endl;
-									  cout << data[tempindex + 1].getPlate() << " " << data[tempindex + 1].getBrand() << " " << data[tempindex + 1].getName() << endl;
-								  }
-							  }
-						  }
+    for (int i = 0; i < countData; ++i)
+    {
+        if (data[i].getPlate() == plate)
+            return i;
+    }
 
-						  if (found != true)
-						  {
-							  cerr << "[ Failed ]" << endl;
-						  }
-					  }
-					  else if (searchChoice == 3)
-					  {
-						  cout << "Please enter the synonym you wish to search: ";
-						  cin.ignore();
-						  getline(cin, userName);
-						  int tempindex;
-						  for (tempindex = 0; tempindex < countData; tempindex++)
-						  {
-							  if (data[tempindex + 1].getName() == userName)
-							  {
-									  found = true;
-									  cout << "Found the synonym - ";
-									  cout << data[tempindex + 1].getPlate() << " " << data[tempindex + 1].getBrand() << " " << data[tempindex + 1].getName() << endl;
-							  }
-						  }
-						  if (found != true)
-						  {
-							  cerr << "[ Failed ]" << endl;
-						  }
-					  }
-					  cout << "-------------------------" << endl;
-					  break;
-		}
-		case('l') :
-		{
-					  int LChoice;
-					  cout << "1: List unsorted data" << endl;
-					  cout << "2: List data sorted by car plate number:" << endl;
-					  cout << "3: List data sorted by user name:" << endl;
-					  cout << "4: List data by indented list" << endl;
-					  cout << "Please enter your choice: ";
-					  cin >> LChoice;
-					  cout << endl;
-					  switch (LChoice)
-					  {
-					  case 1:
-					  {
-								cout << "List unsorted data" << endl;
-								for (int i = 0; i < countData; i++)
-									cout << "[ " << left << setw(7) << data[i].getPlate() << " | " << left << setw(16) << data[i].getName() << " | " << left << setw(9) << data[i].getBrand() << " ]"<<endl;
-								break;
-					  }
-					  case 2:
-						  cout << "By car plate number" << endl;
-						  h.printTable();
-						  cout << "-------------------------" << endl;
-						  break;
-					  case 3:
-						  cout << "By user name" << endl;
-						  cout << endl << "Sorted by car plate number(Unique Key Tree):" << endl;
-						  treePtrPlate->inOrder(display);
-						  cout << endl << "Sorted by user name(Secondary Key Tree):" << endl;
-						  treePtrName->inOrder(display);
-						  break;
-					  case 4:
-						  cout << "By indented list" << endl;
-						  cout << "\n---------------------------------------------------------------------------" << endl;
-						  cout << endl << "Sorted by car plate number:" << endl;
-						  cout << "---------------------------------------------------------------------------" << endl;
-						  treePtrPlate->indentedList(display);
-						  cout << "\n---------------------------------------------------------------------------" << endl;
-						  cout << endl << "Sorted by user name:" << endl;
-						  cout << "---------------------------------------------------------------------------" << endl;
-						  treePtrName->indentedList(display);
-						  break;
-					  default:
-					  {
-								 cout << "Please enter the valid choice:" << endl;
-								 cout << "Backing to menu..." << endl;
-					  }
-					  }
-					  break;
-		}
-		case('w') :
-			cout << "-------------------------" << endl;
-			cout << "Writing data to a file..." << endl;
-			cout << "It will print base on the hash table sequence" << endl;
-			h.output();
-			cout << "-------------------------" << endl;
-			break;
-		case('t') :
-		{
-
-					  cout << "-------------------------" << endl;
-					  cout << "Showing the statistics..." << endl;
-					  h.stattistic();
-					  cout << "-------------------------" << endl;
-					  break;
-		}
-		case('u'):
-		{
-			if (!undoList.isEmpty()) {
-				cout << endl << "Undo Delete Last Car...." << endl;
-				customerData tempData;
-				undoList.pop(tempData);
-				data[countData] = tempData;
-
-				h.add(data[countData], carPlateNum);
-				treePtrPlate->insert(data[countData]);
-
-				treePtrName->insert(data[countData]);
-				countData++;
-			}
-			else cout << endl << "There is no more cars to undo delete" << endl;
-			break;
-		}
-		default:
-			if (tolower(choice) != 'q')
-			{
-				cout << "Please enter the valid key " << endl;
-			}
-		}
-	} while (tolower(choice) != 'q');
+    return -1;
 }
 
-// display function to pass to BST traverse functions
-void display(customerData & anItem)
+void menu(BinarySearchTreePlate<customerData>& plateTree,
+          BinarySearchTreeName<customerData>& nameTree,
+          HashList<customerData>& hash,
+          customerData data[],
+          int& countData)
 {
-	cout << anItem;
+    Stack<customerData> undoList;
+
+    while (true)
+    {
+        std::cout
+            << "\n[A]dd  [D]elete  [S]earch  [L]ist\n"
+            << "[W]rite [T]statistics [U]ndo  [Q]uit\n"
+            << "Choice: ";
+
+        char choice;
+        std::cin >> choice;
+        choice = static_cast<char>(
+            std::tolower(static_cast<unsigned char>(choice)));
+
+        if (choice == 'q')
+            break;
+
+        if (choice == 'a')
+        {
+            if (countData >= MAX_SIZE)
+            {
+                std::cout << "Parking capacity is full.\n";
+                continue;
+            }
+
+            customerData record;
+            std::string plate;
+            std::string name;
+            std::string brand;
+
+            std::cout << "License plate: ";
+            std::cin >> plate;
+
+            if (hash.search(plate))
+            {
+                std::cout << "That plate is already parked.\n";
+                continue;
+            }
+
+            std::cout << "Customer name: ";
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(),
+                            '\n');
+            std::getline(std::cin, name);
+
+            std::cout << "Vehicle brand: ";
+            std::cin >> brand;
+
+            record.setPlate(plate);
+            record.setName(name);
+            record.setBrand(brand);
+            record.getTimeIn();
+
+            hash.add(record, plate);
+            plateTree.insert(record);
+            nameTree.insert(record);
+            data[countData++] = record;
+
+            std::cout << "Vehicle added.\n";
+        }
+        else if (choice == 'd')
+        {
+            std::string plate;
+            std::cout << "License plate to remove: ";
+            std::cin >> plate;
+
+            const int index = findIndexByPlate(
+                data, countData, plate);
+
+            if (index < 0)
+            {
+                std::cout << "No vehicle with plate "
+                          << plate << " was found.\n";
+                continue;
+            }
+
+            customerData removed = data[index];
+            removed.getTimeOut();
+
+            const int minutes = removed.getTimeLength();
+            const int charge = minutes * PARKING_RATE_CENTS_PER_MINUTE;
+
+            hash.removeItem(plate);
+            plateTree.remove(removed);
+            nameTree.remove(removed);
+            undoList.push(removed);
+
+            for (int i = index; i + 1 < countData; ++i)
+                data[i] = data[i + 1];
+
+            --countData;
+
+            std::cout << "Vehicle removed.\n"
+                      << "Parking time: " << minutes << " minutes\n"
+                      << "Charge: " << charge << " cents\n";
+        }
+        else if (choice == 's')
+        {
+            std::cout
+                << "1 - Search by license plate\n"
+                << "2 - Search by customer name\n"
+                << "Choice: ";
+
+            int searchChoice;
+            std::cin >> searchChoice;
+
+            if (searchChoice == 1)
+            {
+                std::string plate;
+                std::cout << "License plate: ";
+                std::cin >> plate;
+
+                customerData key;
+                key.setPlate(plate);
+                customerData result;
+
+                if (plateTree.getEntry(key, result))
+                    std::cout << "Found: " << result << '\n';
+                else
+                    std::cout << "No matching vehicle.\n";
+            }
+            else if (searchChoice == 2)
+            {
+                std::string name;
+                std::cout << "Customer name: ";
+                std::cin.ignore(
+                    std::numeric_limits<std::streamsize>::max(), '\n');
+                std::getline(std::cin, name);
+
+                customerData key;
+                key.setName(name);
+                customerData result;
+
+                if (nameTree.getEntry(key, result))
+                    std::cout << "Found: " << result << '\n';
+                else
+                    std::cout << "No matching customer.\n";
+            }
+            else
+            {
+                std::cout << "Invalid search option.\n";
+            }
+        }
+        else if (choice == 'l')
+        {
+            std::cout << "\nUnsorted records:\n";
+            for (int i = 0; i < countData; ++i)
+                std::cout << "  " << data[i] << '\n';
+
+            std::cout << "\nSorted by license plate:\n";
+            plateTree.inOrder(display);
+
+            std::cout << "\nSorted by customer name:\n";
+            nameTree.inOrder(display);
+        }
+        else if (choice == 'w')
+        {
+            if (hash.output())
+                std::cout << "Hash-table order written to output.txt.\n";
+            else
+                std::cout << "Unable to write output.txt.\n";
+        }
+        else if (choice == 't')
+        {
+            hash.stattistic();
+            std::cout << "Plate BST nodes: " << plateTree.size() << '\n';
+            std::cout << "Name BST nodes: " << nameTree.size() << '\n';
+        }
+        else if (choice == 'u')
+        {
+            customerData restored;
+
+            if (!undoList.pop(restored))
+            {
+                std::cout << "Nothing to undo.\n";
+                continue;
+            }
+
+            if (countData >= MAX_SIZE ||
+                hash.search(restored.getPlate()))
+            {
+                std::cout << "Cannot restore this vehicle.\n";
+                undoList.push(restored);
+                continue;
+            }
+
+            hash.add(restored, restored.getPlate());
+            plateTree.insert(restored);
+            nameTree.insert(restored);
+            data[countData++] = restored;
+
+            std::cout << "Last deletion undone: "
+                      << restored << '\n';
+        }
+        else
+        {
+            std::cout << "Unknown option.\n";
+        }
+    }
 }
 
-void backUp(const char fileName[])
+void display(customerData& item)
 {
-	ifstream fin;
-	fin.open(fileName);
-	string carPlateNum, userName, carBrand;
-	if (!fin)
-	{
-		cerr << "error for opening " << fileName << endl;
-		exit(111);
-	}
+    std::cout << item << '\n';
+}
 
-	ofstream fout;
-	const char fileName2[] = "BackUp.txt";
-	fout.open(fileName2);
-	if (!fout)
-	{
-		cerr << "Error to open " << fileName << "..." << endl;
-		exit(1);
-	}
+void saveData(const char fileName[],
+              const customerData data[],
+              int countData)
+{
+    std::ofstream fout(fileName);
+    if (!fout)
+    {
+        std::cerr << "Unable to write " << fileName << ".\n";
+        return;
+    }
 
-	while (!(fin.eof()))
-	{
-		fin >> carPlateNum;
-		fin >> carBrand;
-		fin.ignore();
-		getline(fin, userName);
-		fout << carPlateNum << " " << carBrand << " " << userName << endl;
-	}
-	fout.close();
+    for (int i = 0; i < countData; ++i)
+    {
+        fout << data[i].getPlate() << ' '
+             << data[i].getBrand() << ' '
+             << data[i].getName() << '\n';
+    }
 }
