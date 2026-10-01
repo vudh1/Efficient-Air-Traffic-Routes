@@ -38,7 +38,8 @@ template<class ItemType>
 bool BinarySearchTreePlate<ItemType>::insert(
     const ItemType& newEntry)
 {
-    if (this->getEntry(newEntry, const_cast<ItemType&>(newEntry)))
+    ItemType existing;
+    if (this->getEntry(newEntry, existing))
         return false;
 
     BinaryNode<ItemType>* node =
